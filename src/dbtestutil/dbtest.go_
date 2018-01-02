@@ -1,0 +1,91 @@
+package main
+
+import (
+	"dbtestutil/dbutil"
+	"dbtestutil/goSnowFlake"
+	"fmt"
+	"log"
+	"time"
+
+	"dbtestutil/logic/classLog"
+	"dbtestutil/logic/userOld"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"os"
+	"runtime"
+)
+
+var doStart time.Time
+
+func timeCost(start time.Time) {
+	terminal := time.Since(start)
+	fmt.Println("total cost time:", terminal)
+}
+
+//var wg sync.WaitGroup  //定义一个同步等待的组
+var cnum chan int
+
+func main() {
+	maxProcs := runtime.NumCPU()     // 获取cpu个数
+	runtime.GOMAXPROCS(maxProcs * 8) //限制同时运行的goroutines数量
+	fmt.Printf("maxProcs = %+v\n", maxProcs*8)
+
+	defer timeCost(time.Now())
+	db, err := gorm.Open("mysql", dbutil.DbSrcUrl)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	db_dest, err := gorm.Open("mysql", dbutil.DbDestUrl)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	defer db_dest.Close()
+
+	db_dest.Exec(userOld.Dest_t_drop)
+	db_dest.Exec(userOld.Dest_t_new)
+
+	var workId int64 = 123
+	iw, _ := goSnowFlake.NewIdWorker(workId)
+
+	var dbCopy dbutil.DbCopy
+	dbCopy.DbSrc = db
+	dbCopy.DbDest = db_dest
+	dbCopy.IdGen = iw
+	dbCopy.NodeId = workId
+
+	records := dbutil.GetCount(db, "user")
+	pages, perPage := dbutil.GetConnNum(records)
+	cnum = make(chan int, pages) //make一个chan,缓存为num
+	fmt.Printf("pages = %+v\n", pages)
+	for i := 0; i < pages; i++ {
+		//go userOld.CopyOld(dbCopy, i*perPage, perPage, cnum)
+		go userOld.BatchCopyOld(dbCopy, i*perPage, perPage, cnum)
+	}
+
+	for i := 0; i < pages; i++ {
+		<-cnum
+	}
+
+	db_dest.Exec(classLog.Dest_t_drop)
+	db_dest.Exec(classLog.Dest_t_new)
+	doStart = time.Now()
+	records = dbutil.GetCount(db, "class_log")
+	pages, perPage = dbutil.GetConnNum(records)
+	cnum = make(chan int, pages) //make一个chan,缓存为num
+
+	for i := 0; i < pages; i++ {
+		//go classLog.CopyOld(dbCopy, i*perPage, perPage, cnum)
+		//go classLog. Export(dbExport, i*perPage, perPage, cnum)
+		go classLog.BatchCopyOld(dbCopy, i*perPage, perPage, cnum)
+	}
+	for i := 0; i < pages; i++ {
+		<-cnum
+	}
+	//fmt.Println(" classLog end-----")
+	secondDru := time.Since(doStart)
+	fmt.Printf("classLog records:%v spend time: %v ,ops: %v/second \n", records, secondDru, records/(int)(secondDru.Seconds()))
+}
