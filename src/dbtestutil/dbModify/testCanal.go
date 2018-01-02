@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DbUrl   = "ms-test:ms-test@tcp(192.168.40.203:13306)/music?charset=utf8&parseTime=True&loc=Local"
+	DbUrl = "ms-test:ms-test@tcp(192.168.40.203:13306)/music?charset=utf8&parseTime=True&loc=Local"
 	//DbUrl   = "root:123456@tcp(192.168.40.238:3306)/music?charset=utf8&parseTime=True&loc=Local"
 	T_drop = "DROP TABLE IF EXISTS testCanal;"
 	T_new  = `
@@ -31,10 +31,10 @@ const (
 `
 )
 
-func ModifyDb(db *gorm.DB,id int64) {
-		db.Exec("insert into testCanal (id,score) values (?,?)", id,rand.Intn(10000) )
+func ModifyDb(db *gorm.DB, id int64) {
+	db.Exec("insert into testCanal (id,score) values (?,?)", id, rand.Intn(10000))
 
-		//if (rand.Intn(100)>30){
-		//db.Exec("update testCanal set name= ? where id= ?","abc"+strconv.Itoa(rand.Intn(10000)),id)
-		//}
+	//if (rand.Intn(100)>30){
+	//db.Exec("update testCanal set name= ? where id= ?","abc"+strconv.Itoa(rand.Intn(10000)),id)
+	//}
 }
