@@ -1,0 +1,25 @@
+appname: cache-bench
+
+mysql:
+    user:     ms-test
+    password: ms-test
+    host:     192.168.40.203
+    port:     13306
+    schema:   music
+    table:    testCanal
+
+redis:
+    host: 192.168.40.221
+    port: 6379
+    db: 6
+
+bench:
+    # 数据库记录数
+    maxrecordnum:     1000
+    # 操作的线程,并发插入,用于仿真
+    threadnum:     30
+    # 数据插入间隔毫秒数,用于仿真
+    mysqlinterval:     1
+    # 查询redis间隔数，一般不要改动
+    redisinterval:     5
+

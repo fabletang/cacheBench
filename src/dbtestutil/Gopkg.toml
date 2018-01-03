@@ -28,3 +28,11 @@
 [[constraint]]
   name = "github.com/go-redis/redis"
   version = "6.8.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jinzhu/configor"
+
+[[constraint]]
+  name = "gopkg.in/cheggaaa/pb.v1"
+  version = "1.0.18"

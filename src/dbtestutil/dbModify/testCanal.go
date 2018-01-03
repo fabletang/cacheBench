@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	DbUrl = "ms-test:ms-test@tcp(192.168.40.203:13306)/music?charset=utf8&parseTime=True&loc=Local"
-	//DbUrl   = "root:123456@tcp(192.168.40.238:3306)/music?charset=utf8&parseTime=True&loc=Local"
 	T_drop = "DROP TABLE IF EXISTS testCanal;"
 	T_new  = `
 		CREATE TABLE testCanal (

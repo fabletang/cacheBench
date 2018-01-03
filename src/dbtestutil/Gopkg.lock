@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/BurntSushi/toml"
+  packages = ["."]
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
+
+[[projects]]
   name = "github.com/go-redis/redis"
   packages = [".","internal","internal/consistenthash","internal/hashtag","internal/pool","internal/proto"]
   revision = "73b70592cdaa9e6abdfcfbf97b4a90d80728c836"
@@ -12,6 +18,12 @@
   packages = ["."]
   revision = "a0583e0143b1624142adab07e0e97fe106d99561"
   version = "v1.3"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jinzhu/configor"
+  packages = ["."]
+  revision = "6ecfe629230f24c2e92c7894c6ab21b83b757a39"
 
 [[projects]]
   name = "github.com/jinzhu/gorm"
@@ -25,9 +37,27 @@
   packages = ["."]
   revision = "1c35d901db3da928c72a72d8458480cc9ade058f"
 
+[[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
+  name = "gopkg.in/cheggaaa/pb.v1"
+  packages = ["."]
+  revision = "657164d0228d6bebe316fdf725c69f131a50fb10"
+  version = "v1.0.18"
+
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "c95af922eae69f190717a0b7148960af8c55a072"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dd6896ee3f29386e9a98da0d37ceb89adbda51cc057108098a8118e78d566530"
+  inputs-digest = "7004ab293ee9666ff560b0eac8b048dc8d4a1a1cdd21dc599da7491ac672b282"
   solver-name = "gps-cdcl"
   solver-version = 1
