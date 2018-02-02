@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	T_drop = "DROP TABLE IF EXISTS testCanal;"
+	T_drop = "DROP TABLE IF EXISTS test_canal;"
 	T_new  = `
-		CREATE TABLE testCanal (
+		CREATE TABLE test_canal (
   		id    bigint NOT NULL DEFAULT 0,
 		name  varchar(1000) NOT NULL DEFAULT 'name-fdasdlkklsdfkldlafdlsakfdlasfdaslfdsalfdalskfldasklfldslafldaslkfl',
 		remark  varchar(1000) NOT NULL DEFAULT 'remark-aaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccc',
@@ -30,7 +30,7 @@ const (
 )
 
 func ModifyDb(db *gorm.DB, id int64) {
-	db.Exec("insert into testCanal (id,score) values (?,?)", id, rand.Intn(10000))
+	db.Exec("insert into test_canal (id,score) values (?,?)", id, rand.Intn(10000))
 
 	//if (rand.Intn(100)>30){
 	//db.Exec("update testCanal set name= ? where id= ?","abc"+strconv.Itoa(rand.Intn(10000)),id)

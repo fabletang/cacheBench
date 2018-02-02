@@ -1,21 +1,31 @@
 appname: cache-bench
 
 mysql:
-    user:     ms-test
-    password: ms-test
-    host:     192.168.40.203
-    port:     13306
+    #user:     ms-test
+    #password: ms-test
+    #host:     192.168.40.203
+    #port:     13306
+    #user:     viptest
+    #password: viptest_2017
+    #host:     192.168.40.219
+    #port:     3306
+    user:     root
+    password: 123456
+    host:     192.168.40.238
+    port:     3306
     schema:   music
-    table:    testCanal
+    table:    test_canal
 
 redis:
-    host: 192.168.40.221
+    host: 192.168.40.203
     port: 6379
+    #host: 192.168.40.112
+    #port: 7000
     db: 6
 
 bench:
     # 数据库记录数
-    maxrecordnum:     1000
+    maxrecordnum:     100
     # 操作的线程,并发插入,用于仿真
     threadnum:     30
     # 数据插入间隔毫秒数,用于仿真

@@ -6,11 +6,6 @@ import (
 	"dbtestutil/dbQuery"
 	"dbtestutil/goSnowFlake"
 	"fmt"
-	"github.com/go-redis/redis"
-	"github.com/jinzhu/configor"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"gopkg.in/cheggaaa/pb.v1"
 	"log"
 	"os"
 	"runtime"
@@ -18,6 +13,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-redis/redis"
+	"github.com/jinzhu/configor"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"gopkg.in/cheggaaa/pb.v1"
 )
 
 //var doStart time.Time
@@ -81,15 +82,15 @@ func main() {
 	}
 	defer db.Close()
 
-	rows, err := db.Raw("select id from "+Config.Mysql.Table+ " limit 1").Rows() // (*sql.Rows, error)
+	rows, err := db.Raw("select id from " + Config.Mysql.Table + " limit 1").Rows() // (*sql.Rows, error)
 	if err != nil {
-		fmt.Println(" table 不存在:",Config.Mysql.Table)
+		fmt.Println(" table 不存在:", Config.Mysql.Table)
 		db.Exec(dbModify.T_new)
-		fmt.Println(" 创建 table:",Config.Mysql.Table)
+		fmt.Println(" 创建 table:", Config.Mysql.Table)
 	}
 	defer rows.Close()
-		//db.Exec(dbModify.T_drop)
-		//db.Exec(dbModify.T_new)
+	//db.Exec(dbModify.T_drop)
+	//db.Exec(dbModify.T_new)
 
 	redisConf := Config.Redis
 	client := redis.NewClient(&redis.Options{
@@ -105,7 +106,6 @@ func main() {
 		os.Exit(1)
 	}
 	defer client.Close()
-
 
 	idGen, _ = goSnowFlake.NewIdWorker(123)
 	benchConf := Config.Bench
@@ -155,13 +155,13 @@ func main() {
 	costMax, costMin, costAve, totalNum := stats(&result)
 	fmt.Println("共统计记录数:", totalNum, "----耗费毫秒数---最大耗费=", costMax, "最小耗费n=", costMin, "平均耗费=", costAve)
 }
-func stats(result *sync.Map) (costMax, costMin, costAve, totalNum int64) {
+func stats(dest *sync.Map) (costMax, costMin, costAve, totalNum int64) {
 	//func stats(result map[string]int64) (costMax, costMin, costAve, totalNum int64) {
 	costMax, costMin = 1, int64(^uint(0)>>1)
 	var total int64
 
 	var tmp int64
-	result.Range(func(k, v interface{}) bool {
+	dest.Range(func(k, v interface{}) bool {
 		tmp = v.(int64)
 		tmp = tmp
 		//fmt.Println(k, v)
@@ -218,7 +218,7 @@ func QueryCache(client *redis.Client, cacheIdQueue <-chan string, ctx context.Co
 		select {
 		case key := <-cacheIdQueue:
 			for {
-				time.Sleep(time.Millisecond * 5)
+				//time.Sleep(time.Millisecond * 5)
 				success := dbQuery.QueryRedis(client, key, dbMap, redisMap)
 				if success {
 					atomic.AddInt32(&sumCache, 1)
