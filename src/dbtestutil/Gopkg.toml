@@ -36,3 +36,11 @@
 [[constraint]]
   name = "gopkg.in/cheggaaa/pb.v1"
   version = "1.0.18"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/elastic/go-elasticsearch"
+
+[[constraint]]
+  name = "github.com/olivere/elastic"
+  version = "6.1.5"

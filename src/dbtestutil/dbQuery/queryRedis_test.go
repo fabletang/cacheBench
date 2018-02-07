@@ -18,7 +18,7 @@ func init() {
 		Password: "", // no password set
 		DB:       6,  // use default DB
 	})
-	client.Set("music-testCanal-123","123456",time.Second*60)
+	client.Set("music-testCanal-123", "123456", time.Second*60)
 }
 func TestQueryRedis(t *testing.T) {
 	//func QueryRedis(client *redis.Client,key string,src,result map[string]int64) (sucess bool) {

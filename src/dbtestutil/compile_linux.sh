@@ -1,2 +1,2 @@
 #bash
-GOOS=linux GOARCH=amd64 go build -o cacheBench-linux-bin cacheBench.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cacheBench-linux-bin main.go

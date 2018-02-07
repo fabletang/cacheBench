@@ -1,0 +1,233 @@
+package main
+
+import (
+	"context"
+	"dbtestutil/dbModify"
+	"dbtestutil/dbQuery"
+	"dbtestutil/goSnowFlake"
+	"fmt"
+	"log"
+	"os"
+	"runtime"
+	"strconv"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/go-redis/redis"
+	"github.com/jinzhu/configor"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"gopkg.in/cheggaaa/pb.v1"
+)
+
+//var doStart time.Time
+//var Config = struct {
+//	APPName string `default:"cache bench"`
+//
+//	Mysql struct {
+//		User     string `required:"true" default:"ms-test"`
+//		Password string `required:"true" env:"DBPassword"`
+//		Host     string `default:"ms-test"`
+//		Port     int    `default:"13306"`
+//		Schema   string `default:"music"`
+//		Table    string `default:"testCache"`
+//	}
+//
+//	Redis struct {
+//		Host string `default:"localhost"`
+//		Port int    `default:"6379"`
+//		Db   int    `default:"6"`
+//	}
+//
+//	Bench struct {
+//		MaxRecordNum  int `default:"100"`
+//		ThreadNum     int `default:"10"`
+//		MysqlInterval int `default:"1"`
+//		RedisInterval int `default:"5"`
+//	}
+//}{}
+
+func timeCost(start time.Time) {
+	terminal := time.Since(start)
+	fmt.Println("total cost time:", terminal)
+}
+
+var wg sync.WaitGroup //定义一个同步等待的组
+
+//var sumDb int32 = 0
+//var sumCache int32 = 0
+
+var idGen *goSnowFlake.IdWorker
+var m sync.Map
+var result sync.Map
+var db *gorm.DB
+
+func main2() {
+	configor.Load(&Config, "config.yml")
+	//fmt.Printf("config: %#v", Config)
+	defer timeCost(time.Now())
+	maxProcs := runtime.NumCPU()     // 获取cpu个数
+	runtime.GOMAXPROCS(maxProcs * 4) //限制同时运行的goroutines数量
+	//fmt.Printf("maxProcs = %+v\n", maxProcs*8)
+	var err error
+	mysqlConf := Config.Mysql
+	mysqlUrl := mysqlConf.User + ":" + mysqlConf.Password + "@tcp(" + mysqlConf.Host + ":" + strconv.Itoa(mysqlConf.Port) + ")/" + mysqlConf.Schema
+	mysqlUrl += "?charset=utf8&parseTime=True&loc=Local"
+	fmt.Println("---mysqlUrl:" + mysqlUrl)
+	db, err = gorm.Open("mysql", mysqlUrl)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	rows, err := db.Raw("select id from " + Config.Mysql.Table + " limit 1").Rows() // (*sql.Rows, error)
+	if err != nil {
+		fmt.Println(" table 不存在:", Config.Mysql.Table)
+		db.Exec(dbModify.T_new)
+		fmt.Println(" 创建 table:", Config.Mysql.Table)
+	}
+	defer rows.Close()
+	//db.Exec(dbModify.T_drop)
+	//db.Exec(dbModify.T_new)
+
+	redisConf := Config.Redis
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisConf.Host + ":" + strconv.Itoa(redisConf.Port),
+		Password: "",           // no password set
+		DB:       redisConf.Db, // use default DB
+		PoolSize: Config.Bench.ThreadNum,
+	})
+	fmt.Println("---redisConf:", redisConf)
+	_, err = client.Ping().Result()
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	defer client.Close()
+
+	idGen, _ = goSnowFlake.NewIdWorker(123)
+	benchConf := Config.Bench
+	dbIdqueue := make(chan int64, benchConf.ThreadNum)        // 表示 写入数据库管道的容量
+	cacheIdqueue := make(chan string, benchConf.MaxRecordNum) // 表示读取redis管道的容量
+	wg.Add(1)
+
+	background := context.Background()
+	ctxDb, cancelDb := context.WithCancel(background)
+	ctxCache, cancelCache := context.WithCancel(background)
+
+	for i := 0; i < benchConf.ThreadNum; i++ {
+		go QueryCache(client, cacheIdqueue, ctxCache, &m, &result)
+	}
+
+	for i := 0; i < benchConf.ThreadNum; i++ {
+		go ModifyDb(dbIdqueue, ctxDb, cacheIdqueue, &m)
+	}
+	go P(dbIdqueue)
+
+	bar := pb.StartNew(Config.Bench.MaxRecordNum)
+	var num int32 = 0
+	for num < int32(Config.Bench.MaxRecordNum) {
+		for ; num < sumCache; num++ {
+			bar.Increment()
+		}
+		time.Sleep(time.Millisecond * time.Duration(10))
+	}
+	bar.FinishPrint("The End!")
+	//progressBar (&wg)
+	wg.Wait()
+
+	for {
+		if sumDb == int32(benchConf.MaxRecordNum) {
+			cancelDb()
+			fmt.Printf("---数据写入完成，共 %d 条纪录\n", sumDb)
+			break
+		}
+	}
+	for {
+		if sumCache == int32(benchConf.MaxRecordNum) {
+			cancelCache()
+			fmt.Printf("---redis查询完成，共 %d 条纪录\n", sumCache)
+			break
+		}
+	}
+	costMax, costMin, costAve, totalNum := stats(&result)
+	fmt.Println("共统计记录数:", totalNum, "----耗费毫秒数---最大耗费=", costMax, "最小耗费n=", costMin, "平均耗费=", costAve)
+}
+func stats(dest *sync.Map) (costMax, costMin, costAve, totalNum int64) {
+	//func stats(result map[string]int64) (costMax, costMin, costAve, totalNum int64) {
+	costMax, costMin = 1, int64(^uint(0)>>1)
+	var total int64
+
+	var tmp int64
+	dest.Range(func(k, v interface{}) bool {
+		tmp = v.(int64)
+		tmp = tmp
+		//fmt.Println(k, v)
+		if tmp > costMax {
+			costMax = tmp
+		}
+		if tmp < costMin {
+			costMin = tmp
+		}
+		total += tmp
+		totalNum += 1
+		return true
+	})
+	costAve = total / totalNum
+
+	costMax = costMax / 1e6
+	costMin = costMin / 1e6
+	costAve = costAve / 1e6
+	return
+}
+
+func P(dbIdQueue chan<- int64) {
+	defer wg.Done()
+	var id int64
+	for i := 0; i < Config.Bench.MaxRecordNum; i++ {
+		id, _ = idGen.NextId()
+		dbIdQueue <- id
+	}
+}
+
+func ModifyDb(dbIdQueue <-chan int64, ctx context.Context, cacheIdQueue chan string, dbMap *sync.Map) {
+	keyPrefix := Config.Mysql.Schema + "-" + Config.Mysql.Table + "-"
+	for {
+		select {
+		case i := <-dbIdQueue:
+
+			dbModify.ModifyDb(db, i)
+			key := keyPrefix + strconv.FormatInt(i, 10)
+			dbMap.Store(key, (time.Now().UnixNano()))
+			//m.Store(key, (time.Now().UnixNano()))
+			cacheIdQueue <- key
+			atomic.AddInt32(&sumDb, 1)
+			//fmt.Println("key:",key)
+			time.Sleep(time.Millisecond * (time.Duration(Config.Bench.MysqlInterval)))
+		case <-ctx.Done():
+			//fmt.Println("------------ goroutine ModifyDb done")
+			return
+		}
+	}
+}
+
+func QueryCache(client *redis.Client, cacheIdQueue <-chan string, ctx context.Context, dbMap, redisMap *sync.Map) {
+	for {
+		select {
+		case key := <-cacheIdQueue:
+			for {
+				//time.Sleep(time.Millisecond * 5)
+				success := dbQuery.QueryRedis(client, key, dbMap, redisMap)
+				if success {
+					atomic.AddInt32(&sumCache, 1)
+					break
+				}
+			}
+		case <-ctx.Done():
+			//fmt.Println("------------ goroutine QueryCache done")
+			return
+		}
+	}
+}

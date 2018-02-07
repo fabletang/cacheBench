@@ -29,8 +29,8 @@ const (
 `
 )
 
-func ModifyDb(db *gorm.DB, id int64) {
-	db.Exec("insert into test_canal (id,score) values (?,?)", id, rand.Intn(10000))
+func ModifyDb(db *gorm.DB, id int64) *gorm.DB {
+	return db.Exec("insert into test_canal (id,score) values (?,?)", id, rand.Intn(10000))
 
 	//if (rand.Intn(100)>30){
 	//db.Exec("update testCanal set name= ? where id= ?","abc"+strconv.Itoa(rand.Intn(10000)),id)
